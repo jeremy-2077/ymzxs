@@ -1,0 +1,154 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import store from '../store'
+
+const routes = [
+  {
+    path: '/',
+    name: 'HomePage',
+    component: () => import('../views/Home.vue')
+  },
+  {
+    path: '/login',
+    name: 'LoginPage',
+    component: () => import('../views/Login.vue')
+  },
+  {
+    path: '/register',
+    name: 'RegisterPage',
+    component: () => import('../views/Register.vue')
+  },
+  // 学生路由
+  {
+    path: '/student',
+    component: () => import('../views/student/Layout.vue'),
+    meta: { requiresAuth: true, role: 'student' },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'StudentDashboard',
+        component: () => import('../views/student/Dashboard.vue'),
+        meta: { title: '首页' }
+      },
+      {
+        path: 'profile',
+        name: 'StudentProfile',
+        component: () => import('../views/student/Profile.vue'),
+        meta: { title: '个人信息' }
+      },
+      {
+        path: 'seat-map',
+        name: 'SeatMap',
+        component: () => import('../views/student/SeatMap.vue'),
+        meta: { title: '座位预约' }
+      },
+      {
+        path: 'reservations',
+        name: 'MyReservations',
+        component: () => import('../views/student/MyReservations.vue'),
+        meta: { title: '我的预约' }
+      },
+      {
+        path: 'my-reservations',
+        redirect: '/student/reservations'
+      },
+      {
+        path: 'check-in',
+        name: 'CheckIn',
+        component: () => import('../views/student/CheckIn.vue'),
+        meta: { title: '签到/签退' }
+      },
+      {
+        path: 'checkin',
+        redirect: '/student/check-in'
+      }
+    ]
+  },
+  // 管理员路由
+  {
+    path: '/admin',
+    component: () => import('../views/admin/Layout.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: () => import('../views/admin/Dashboard.vue'),
+        meta: { title: '管理后台' }
+      },
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: () => import('../views/admin/UserManagement.vue'),
+        meta: { title: '用户管理' }
+      },
+      {
+        path: 'facility',
+        name: 'FacilityManagement',
+        component: () => import('../views/admin/FacilityManagement.vue'),
+        meta: { title: '设施管理' }
+      },
+      {
+        path: 'study-rooms',
+        name: 'StudyRoomManagement',
+        component: () => import('../views/admin/StudyRoomManagement.vue'),
+        meta: { title: '自习室管理' }
+      },
+      {
+        path: 'reports',
+        name: 'Reports',
+        component: () => import('../views/admin/Reports.vue'),
+        meta: { title: '统计报表' }
+      }
+    ]
+  },
+  // 404页面
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFound.vue')
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+// 路由守卫 - 添加日志
+router.beforeEach((to, from, next) => {
+  console.log(`Navigating to: ${to.path}`); // Log target path
+  console.log('Route requires auth?:', to.matched.some(record => record.meta.requiresAuth));
+  console.log('Is authenticated?:', store.getters.isAuthenticated);
+  console.log('Current user in store:', store.getters.currentUser);
+  console.log('Target route meta role:', to.meta.role);
+  
+  // 需要认证的页面
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    // 未登录，跳转到登录页
+    if (!store.getters.isAuthenticated) {
+      console.log('Guard decision: Not authenticated, redirecting to /login');
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      });
+      return;
+    }
+    
+    // 角色检查
+    const userRole = store.getters.currentUser?.role;
+    console.log('User role from store:', userRole);
+    if (to.meta.role && to.meta.role !== userRole) {
+      // 如果角色不匹配，根据当前存储的角色重定向到对应的 dashboard
+      const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/student/dashboard';
+      console.log(`Guard decision: Role mismatch (Route: ${to.meta.role}, User: ${userRole}), redirecting to ${redirectPath}`);
+      next({ path: redirectPath });
+      return;
+    }
+    console.log('Guard decision: Authenticated and role matches (or no role check needed).');
+  }
+  
+  console.log('Guard decision: Proceeding with next()');
+  next(); // <--- 确保 next() 总是在某个分支被调用
+});
+
+export default router 
