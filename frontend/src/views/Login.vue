@@ -2,7 +2,7 @@
   <div class="login-container">
     <el-card class="login-card">
       <div class="logo">
-        <h1>自习室座位管理系统</h1>
+        <h1>阳明自习室管理系统</h1>
       </div>
       
       <el-tabs v-model="activeTab">

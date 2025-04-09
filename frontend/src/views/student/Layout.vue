@@ -4,7 +4,7 @@
       <!-- 侧边栏 -->
       <el-aside width="220px">
         <div class="logo-container">
-          <h3>自习室座位管理系统</h3>
+          <h3>阳明自习室管理系统</h3>
         </div>
         <el-menu 
           :default-active="activeMenu" 

@@ -57,7 +57,7 @@
           <!-- 签到结果 -->
           <el-dialog
             title="签到结果"
-            v-model:visible="checkInResult.visible"
+            v-model="checkInResult.visible"
             width="400px"
             center>
             <div class="result-content" :class="checkInResult.success ? 'success' : 'error'">
@@ -132,7 +132,7 @@
           <!-- 延长时间对话框 -->
           <el-dialog
             title="延长使用时间"
-            v-model:visible="extendTimeDialog.visible"
+            v-model="extendTimeDialog.visible"
             width="400px"
             center>
             <div v-if="extendTimeDialog.reservation">
@@ -167,7 +167,9 @@
           <!-- 签退确认对话框 -->
           <el-dialog
             title="签退确认"
-            v-model:visible="checkOutDialog.visible"
+            v-model="checkOutDialog.visible"
+            :close-on-click-modal="false"
+            :close-on-press-escape="false"
             width="400px"
             center>
             <div v-if="checkOutDialog.reservation" class="checkout-confirm">
@@ -257,6 +259,15 @@ export default {
       try {
         const response = await axios.get('/api/seats/reservations/current');
         console.log('获取到的当前预约数据:', response.data);
+        
+        // 检查预约状态
+        if (response.data && response.data.length > 0) {
+          const activeReservations = response.data.filter(r => r.status === 'active');
+          console.log('筛选出的使用中预约数量:', activeReservations.length);
+          console.log('使用中预约:', activeReservations);
+        } else {
+          console.log('没有找到当前预约');
+        }
         
         // 将API返回的数据转换为组件所需格式
         this.activeReservations = response.data.map(reservation => {
@@ -382,22 +393,35 @@ export default {
     
     // 签退座位
     handleCheckOut(reservation) {
+      console.log('签退座位按钮点击，预约信息:', reservation);
       this.checkOutDialog = {
         visible: true,
         reservation,
         loading: false
       };
+      console.log('签退对话框状态:', this.checkOutDialog);
     },
     
     // 确认签退
     async confirmCheckOut() {
-      if (!this.checkOutDialog.reservation) return;
+      console.log('确认签退按钮点击');
+      if (!this.checkOutDialog.reservation) {
+        console.error('无法签退：没有选择预约');
+        return;
+      }
       
       this.checkOutDialog.loading = true;
       
       try {
+        console.log(`正在发送签退请求，预约ID: ${this.checkOutDialog.reservation.id}`);
         // 发送签退请求
-        await axios.post(`/api/seats/reservations/${this.checkOutDialog.reservation.id}/check-out`);
+        const response = await axios.post(
+          `/api/seats/reservations/${this.checkOutDialog.reservation.id}/check-out`, 
+          {},
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+        
+        console.log('签退成功，响应:', response.data);
         
         // 从列表中移除
         this.activeReservations = this.activeReservations.filter(
@@ -405,8 +429,11 @@ export default {
         );
         
         this.$message.success('座位签退成功');
+        // 刷新预约列表
+        await this.fetchActiveReservations();
       } catch (error) {
         console.error('签退失败:', error);
+        console.error('错误详情:', error.response?.data || error.message);
         this.$message.error(error.response?.data?.error || '签退失败，请稍后重试');
       } finally {
         this.checkOutDialog.visible = false;
